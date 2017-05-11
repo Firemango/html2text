@@ -47,7 +47,7 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 	ctx.justClosedDiv = false
 	switch node.DataAtom {
 	case atom.Br:
-		return ctx.emit("\n")
+		return ctx.emit("")
 
 	case atom.H1, atom.H2, atom.H3:
 		subCtx := textifyTraverseCtx{}
@@ -56,32 +56,16 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 		}
 
 		str := subCtx.Buf.String()
-		dividerLen := 0
-		for _, line := range strings.Split(str, "\n") {
-			if lineLen := len([]rune(line)); lineLen-1 > dividerLen {
-				dividerLen = lineLen - 1
-			}
-		}
-		divider := ""
-		if node.DataAtom == atom.H1 {
-			divider = strings.Repeat("*", dividerLen)
-		} else {
-			divider = strings.Repeat("-", dividerLen)
-		}
-
-		if node.DataAtom == atom.H3 {
-			return ctx.emit("\n\n" + str + "\n" + divider + "\n\n")
-		}
-		return ctx.emit("\n\n" + divider + "\n" + str + "\n" + divider + "\n\n")
+		return ctx.emit(str)
 
 	case atom.Blockquote:
 		ctx.blockquoteLevel++
 		ctx.prefix = strings.Repeat(">", ctx.blockquoteLevel) + " "
-		if err := ctx.emit("\n"); err != nil {
+		if err := ctx.emit(""); err != nil {
 			return err
 		}
 		if ctx.blockquoteLevel == 1 {
-			if err := ctx.emit("\n"); err != nil {
+			if err := ctx.emit(""); err != nil {
 				return err
 			}
 		}
@@ -93,11 +77,11 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 		if ctx.blockquoteLevel > 0 {
 			ctx.prefix += " "
 		}
-		return ctx.emit("\n\n")
+		return ctx.emit("")
 
 	case atom.Div:
 		if ctx.lineLength > 0 {
-			if err := ctx.emit("\n"); err != nil {
+			if err := ctx.emit(""); err != nil {
 				return err
 			}
 		}
@@ -106,13 +90,13 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 		}
 		var err error
 		if ctx.justClosedDiv == false {
-			err = ctx.emit("\n")
+			err = ctx.emit("")
 		}
 		ctx.justClosedDiv = true
 		return err
 
 	case atom.Li:
-		if err := ctx.emit("* "); err != nil {
+		if err := ctx.emit(""); err != nil {
 			return err
 		}
 
@@ -120,7 +104,7 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 			return err
 		}
 
-		return ctx.emit("\n")
+		return ctx.emit("")
 
 	case atom.B, atom.Strong:
 		subCtx := textifyTraverseCtx{}
@@ -129,7 +113,7 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 			return err
 		}
 		str := subCtx.Buf.String()
-		return ctx.emit("*" + str + "*")
+		return ctx.emit(str)
 
 	case atom.A:
 		// If image is the only child, take its alt text as the link text
@@ -152,7 +136,7 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 		return ctx.emit(hrefLink)
 
 	case atom.P, atom.Ul, atom.Table:
-		if err := ctx.emit("\n\n"); err != nil {
+		if err := ctx.emit(""); err != nil {
 			return err
 		}
 
@@ -160,14 +144,14 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 			return err
 		}
 
-		return ctx.emit("\n\n")
+		return ctx.emit("")
 
 	case atom.Tr:
 		if err := ctx.traverseChildren(node); err != nil {
 			return err
 		}
 
-		return ctx.emit("\n")
+		return ctx.emit("")
 
 	case atom.Style, atom.Script, atom.Head:
 		// Ignore the subtree
