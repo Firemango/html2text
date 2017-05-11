@@ -35,8 +35,7 @@ func (ctx *textifyTraverseCtx) traverse(node *html.Node) error {
 		return ctx.traverseChildren(node)
 
 	case html.TextNode:
-		data := strings.Trim(spacingRe.ReplaceAllString(node.Data, " "), " ")
-		return ctx.emit(data)
+		return ctx.emit(node.Data)
 
 	case html.ElementNode:
 		return ctx.handleElementNode(node)
@@ -47,7 +46,7 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 	ctx.justClosedDiv = false
 	switch node.DataAtom {
 	case atom.Br:
-		return ctx.emit("")
+		return ctx.emit("\n")
 
 	case atom.H1, atom.H2, atom.H3:
 		subCtx := textifyTraverseCtx{}
@@ -56,7 +55,23 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 		}
 
 		str := subCtx.Buf.String()
-		return ctx.emit(str)
+		dividerLen := 0
+		for _, line := range strings.Split(str, "") {
+			if lineLen := len([]rune(line)); lineLen-1 > dividerLen {
+				dividerLen = lineLen - 1
+			}
+		}
+		divider := ""
+		if node.DataAtom == atom.H1 {
+			divider = strings.Repeat("", dividerLen)
+		} else {
+			divider = strings.Repeat("", dividerLen)
+		}
+
+		if node.DataAtom == atom.H3 {
+			return ctx.emit("" + str + "" + divider + "")
+		}
+		return ctx.emit("" + divider + "" + str + "" + divider + "")
 
 	case atom.Blockquote:
 		ctx.blockquoteLevel++
@@ -96,7 +111,7 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 		return err
 
 	case atom.Li:
-		if err := ctx.emit(""); err != nil {
+		if err := ctx.emit("* "); err != nil {
 			return err
 		}
 
@@ -113,7 +128,7 @@ func (ctx *textifyTraverseCtx) handleElementNode(node *html.Node) error {
 			return err
 		}
 		str := subCtx.Buf.String()
-		return ctx.emit(str)
+		return ctx.emit("*" + str + "*")
 
 	case atom.A:
 		// If image is the only child, take its alt text as the link text
@@ -179,11 +194,6 @@ func (ctx *textifyTraverseCtx) emit(data string) error {
 	var err error
 	for _, line := range lines {
 		runes := []rune(line)
-		startsWithSpace := unicode.IsSpace(runes[0])
-		if !startsWithSpace && !ctx.endsWithSpace {
-			ctx.Buf.WriteByte(' ')
-			ctx.lineLength++
-		}
 		ctx.endsWithSpace = unicode.IsSpace(runes[len(runes)-1])
 		for _, c := range line {
 			_, err = ctx.Buf.WriteString(string(c))
@@ -215,7 +225,7 @@ func (ctx *textifyTraverseCtx) breakLongLines(data string) []string {
 	l := len(runes)
 	existing := ctx.lineLength
 	if existing >= 74 {
-		ret = append(ret, "\n")
+		ret = append(ret, "")
 		existing = 0
 	}
 	for l+existing > 74 {
@@ -230,7 +240,7 @@ func (ctx *textifyTraverseCtx) breakLongLines(data string) []string {
 				i++
 			}
 		}
-		ret = append(ret, string(runes[:i])+"\n")
+		ret = append(ret, string(runes[:i])+"")
 		for i < l && unicode.IsSpace(runes[i]) {
 			i++
 		}
@@ -268,9 +278,7 @@ func FromHtmlNode(doc *html.Node) (string, error) {
 		return "", err
 	}
 
-	text := strings.TrimSpace(newlineRe.ReplaceAllString(
-		strings.Replace(ctx.Buf.String(), "\n ", "\n", -1), "\n\n"))
-	return text, nil
+	return ctx.Buf.String(), nil
 
 }
 
